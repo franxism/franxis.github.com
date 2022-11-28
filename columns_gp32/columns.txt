@@ -1,0 +1,30 @@
+
+----------------------------
+COLUMNS GP32 1.0 por Franxis
+----------------------------
+
+Se trata de un port para la consola portatil GP32 de un remake de la recreativa Columns para DOS que hice en 1996 para un concurso de programación de la universidad.
+
+Los gráficos fueron capturados de la versión de MSX2 del juego con uno de los primeros emuladores de MSX que salió para PC (MSX4PC) mediante la utilidad 'Screen Thief' y modificados con el 'Deluxe Paint 2 Enhanced'. Los mínimos cambios gráficos para GP32 los he hecho con Paint Shop Pro.
+
+La música es un MOD de 'Axel of Brainstorm' con título 'Technology'. No sé nada más de este módulo de sonido, lo escuché por casualidad en un antiguo CD de MODs y me gustó mucho.
+
+La programación la he realizado con el GP32IDE 1.01, el DEVKITADV de Rico, las librerías GPModPlay y el emulador GEEPEE32.
+
+Agradecimientos especiales a:
+Locke de talfi.net
+Canal #gp32dev del IRC-Hispano
+
+Webs con información para empezar a programar en GP32:
+http://www.pararakels.com/gpidetuto/
+http://www.thaworx.co.uk/ninja/tut3.htm
+
+Webs interesantes:
+http://www.talfi.net
+http://www.gp32spain.com
+
+
+Espero que os guste el juego.
+
+Franxis
+fjmar@hotmail.com

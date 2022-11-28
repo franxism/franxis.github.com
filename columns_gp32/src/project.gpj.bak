@@ -1,0 +1,20 @@
+[GP32iDE Project]
+Name=prueba2
+Params=/EXE=%file%.fxe /RUN
+Creation=06/07/2004
+[Files]
+Count=14
+File1=C:\FRAN\gp32\prueba2\gpmain.c
+File2=C:\FRAN\gp32\prueba2\gpmain.h
+File3=C:\FRAN\gp32\prueba2\makefile
+File4=C:\FRAN\gp32\prueba2\intro.h
+File5=C:\FRAN\gp32\prueba2\modfile.h
+File6=C:\FRAN\gp32\prueba2\gpmodplay.h
+File7=C:\FRAN\gp32\prueba2\gpmodplay_defines.h
+File8=C:\FRAN\gp32\prueba2\gpmodplay_modplay.h
+File9=C:\FRAN\gp32\prueba2\gpmodplaypp.h
+File10=C:\FRAN\gp32\prueba2\fuentes.h
+File11=C:\FRAN\gp32\prueba2\marcad.h
+File12=C:\FRAN\gp32\prueba2\piezas.h
+File13=C:\FRAN\gp32\prueba2\paleta.h
+File14=C:\FRAN\gp32\prueba2\preview.h
