@@ -1,0 +1,25 @@
+MultiPac GP32 1.0 Código Fuente (15/04/2005)
+--------------------------------------------
+
+http://www.talfi.net/gp32_franxis/
+
+Entorno de desarrollo: GP32iDE + DevKitAdvance
+
+Antes de compilar es necesario copiar al directorio arm-agb-elf\include\gp32
+del DevKitAdvance el fichero gpdef.h que viene en esta distribución.
+He comentado los siguientes #defines que provocaban que el MultiPac no
+funcionase correctamente: byte,word,dword. No hay ningún problema en ello
+ya que estas definiciones no son usadas en todo el GPSDK.
+
+Además deberás de modificar los ficheros Makefile y project.gpj para conseguir
+compilar (nombres de directorios, etc).
+
+Hay muchos cambios que podrían ser facilmente implementados: Mejorar el sonido,
+mejorar la velocidad de la función de actualización de la pantalla, etc. Con algo
+de trabajo podría funcionar al 100% de velocidad a 133 MHz, por lo que no harían
+falta varios ejecutables a distintas velocidades, y con mejor sonido que el actual.
+Pero estoy muy ocupado con mi port del MAME, así que si alguien se anima...
+
+Gracias y un saludo.
+
+- Franxis
