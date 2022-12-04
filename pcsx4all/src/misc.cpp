@@ -60,7 +60,11 @@ struct iso_directory_record {
 void mmssdd( char *b, char *p )
  {
 	int m, s, d;
+#ifndef __arm__
+	int block = (b[0]&0xff) | ((b[1]&0xff)<<8) | ((b[2]&0xff)<<16) | (b[3]<<24);
+#else
 	int block = b[0] | (b[1]<<8) | (b[2]<<16) | (b[3]<<24);
+#endif
 	
 	block += 150;
 	m = block / 4500;			// minuten
@@ -109,7 +113,7 @@ int GetCdromFile(u8 *mdir, u8 *time, const char *filename) {
 	int i;
 
 	// only try to scan if a filename is given
-	if (strlen(filename)==0) return -1;
+	if (!strlen(filename)) return -1;
 
 	i = 0;
 	while (i < 4096) {
@@ -151,10 +155,12 @@ int LoadCdrom() {
 	u8 mdir[4096];
 	char exename[256];
 
+#ifndef DEBUG_CPU
 	if (!Config.HLE) {
 		psxRegs.pc = psxRegs.GPR.n.ra;
 		return 0;
 	}
+#endif
 
 	time[0] = itob(0); time[1] = itob(2); time[2] = itob(0x10);
 
@@ -204,16 +210,91 @@ int LoadCdrom() {
 
 	memcpy(&tmpHead, buf + 12, sizeof(EXE_HEADER));
 
-	psxRegs.pc = SWAP32(tmpHead.pc0);
-	psxRegs.GPR.n.gp = SWAP32(tmpHead.gp0);
-	psxRegs.GPR.n.sp = SWAP32(tmpHead.s_addr); 
-	if (psxRegs.GPR.n.sp == 0) psxRegs.GPR.n.sp = 0x801fff00;
+#ifdef DEBUG_CPU
+	if (Config.HLE)
+#endif
+	{
+		psxRegs.pc = SWAP32(tmpHead.pc0);
+		psxRegs.GPR.n.gp = SWAP32(tmpHead.gp0);
+		psxRegs.GPR.n.sp = SWAP32(tmpHead.s_addr); 
+		if (psxRegs.GPR.n.sp == 0) psxRegs.GPR.n.sp = 0x801fff00;
+#ifdef DEBUG_CPU
+		psxRegs.GPR.r[1]=0x00000025;
+		psxRegs.GPR.r[2]=0x00000001;
+		psxRegs.GPR.r[4]=0x00000001;
+		psxRegs.GPR.r[7]=0x0000002A;
+		psxRegs.GPR.r[8]=0x801FFF00;
+		psxRegs.GPR.r[10]=0x0000002D;
+		psxRegs.GPR.r[11]=0x8002B8C0;
+		psxRegs.GPR.r[12]=0x00000023;
+		psxRegs.GPR.r[13]=0x0000002B;
+		psxRegs.GPR.r[14]=0xA0010000;
+		psxRegs.GPR.r[16]=0xA000B870;
+		psxRegs.GPR.r[24]=0x00000001;
+		psxRegs.GPR.r[26]=0xBFC0D968;
+		psxRegs.GPR.r[27]=0x00000F1C;
+		psxRegs.GPR.r[29]=0x801FFF00;
+		psxRegs.GPR.r[30]=0x801FFF00;
+		psxRegs.GPR.r[31]=0xBFC03D60;
+		psxRegs.GPR.r[33]=0x00000008;
+		if (autobias) {
+			psxRegs.cycle=38332544;
+			psxRegs.io_cycle_counter=38332584;
+			psxNextCounter=2137;
+			psxNextsCounter=38330447;
+			rcnts[0].cycleStart=38317816;
+			rcnts[1].cycleStart=38317871;
+			rcnts[2].cycleStart=38317926;
+			rcnts[3].cycleStart=38330430;
+			psxRegs.intCycle[2]=38224629;
+			psxRegs.intCycle[3]=4096;
+			psxRegs.intCycle[18]=37699116;
+			psxRegs.intCycle[19]=225792;
+			psxSetSyncs(249,16);
+		} else {
+			psxRegs.cycle=73033893;
+			psxRegs.io_cycle_counter=73035678;
+			psxNextCounter=2130;
+			psxNextsCounter=73033548;
+			rcnts[0].cycleStart=73019481;
+			rcnts[1].cycleStart=73019547;
+			rcnts[2].cycleStart=73019613;
+			rcnts[3].cycleStart=73033524;
+			psxRegs.intCycle[2]=72891387;
+			psxRegs.intCycle[3]=4096;
+			psxRegs.intCycle[18]=72365592;
+			psxRegs.intCycle[19]=225792;
+			psxSetSyncs(286,4);
+		}
+		rcnts[0].mode=5120;
+		rcnts[1].mode=5120;
+		rcnts[2].mode=5120;
+		rcnts[3].mode=3080;
+		rcnts[0].cycle=65535;
+		rcnts[1].cycle=65535;
+		rcnts[2].cycle=65535;
+		rcnts[3].cycle=2154;
+	} else {
+		unsigned new_pc=SWAP32(tmpHead.pc0);
+		int back=isdbg();
+		dbg_disable();
+		psxRegs.pc = psxRegs.GPR.n.ra;
+		while (psxRegs.pc != new_pc)
+			psxCpu->ExecuteBlock(new_pc);
+		if (back)
+			dbg_enable();
+#endif
+	}
 
 	tmpHead.t_size = SWAP32(tmpHead.t_size);
 	tmpHead.t_addr = SWAP32(tmpHead.t_addr);
 
+	#ifdef PSXREC
+		psxCpu->Clear(tmpHead.t_addr, tmpHead.t_size / 4);
+	#endif
+
 	// Read the rest of the main executable
-	while (tmpHead.t_size) {
+	while (tmpHead.t_size & ~2047) {
 		void *ptr = (void *)PSXM(tmpHead.t_addr);
 
 		incTime();
@@ -225,6 +306,22 @@ int LoadCdrom() {
 		tmpHead.t_addr += 2048;
 	}
 
+#ifdef DEBUG_CPU
+	dbgpsxregs();
+	dbgf("Cycle %u, Next %u %u, Syncs %u %u\n",psxRegs.cycle,psxNextCounter,psxNextsCounter,psxGetHSync(),psxGetSpuSync());
+	for(unsigned n=0;n<4;n++)
+		dbgf("CNT%u mode=%i,target=%i,rate=%i,irq=%i,cnt=%i,stt=%i,c=%i,cs=%i\n",n,rcnts[n].mode,rcnts[n].target,rcnts[n].rate,rcnts[n].irq,rcnts[n].counterState,rcnts[n].irqState,rcnts[n].cycle,rcnts[n].cycleStart);
+	dbgsum("Load",psxRegs.psxH,0x10000);
+	for(unsigned i=0;i<0x10000;i++)
+		if (((unsigned char *)psxRegs.psxH)[i])
+			dbgf("psxH[0x%X]=0x%X\n",i,(((unsigned char *)psxRegs.psxH)[i]));
+	dbgf("Counters %u %u, IntCycle:",psxNextCounter,psxNextsCounter);
+	for(unsigned i=0;i<32;i++){
+		if (!(i&7)) dbgf("\n\t%.2u:",i);
+		dbgf(" %u", psxRegs.intCycle[i]);
+	}
+	dbg("");
+#endif
 	return 0;
 }
 
@@ -258,12 +355,12 @@ int LoadCdromFile(const char *filename, EXE_HEADER *head) {
 	memcpy(head, buf + 12, sizeof(EXE_HEADER));
 	size = head->t_size;
 	addr = head->t_addr;
-// CHUI: Algunos juegos no funcionan si no se limpia la zona decompilada
+
 	#ifdef PSXREC
 		psxCpu->Clear(addr, size/4);
 	#endif
 
-	while (size) {
+	while (size & ~2047) {
 		incTime();
 		READTRACK();
 
@@ -354,8 +451,10 @@ int CheckCdrom() {
 	if (CdromLabel[0] == ' ') {
 		strncpy(CdromLabel, CdromId, 9);
 	}
+#ifndef DEBUG_BIOS
 	printf("CD-ROM Label: %.32s\n", CdromLabel);
 	printf("CD-ROM ID: %.9s\n", CdromId);
+#endif
 
 	return 0;
 }
@@ -396,6 +495,7 @@ int Load(const char *ExePath) {
 	int retval = 0;
 	u8 opcode;
 	u32 section_address, section_size;
+	void *mem;
 
 	strncpy(CdromId, "SLUS99999", 9);
 	strncpy(CdromLabel, "SLUS_999.99", 11);
@@ -409,8 +509,16 @@ int Load(const char *ExePath) {
 		switch (type) {
 			case PSX_EXE:
 				fread(&tmpHead,sizeof(EXE_HEADER),1,tmpFile);
-				fseek(tmpFile, 0x800, SEEK_SET);		
-				fread((void *)PSXM(SWAP32(tmpHead.t_addr)), SWAP32(tmpHead.t_size),1,tmpFile);
+				section_address = SWAP32(tmpHead.t_addr);
+				section_size = SWAP32(tmpHead.t_size);
+				mem = PSXM(section_address);
+				if (mem != NULL) {
+					fseek(tmpFile, 0x800, SEEK_SET);		
+					fread(mem, section_size, 1, tmpFile);
+					#ifdef PSXREC
+						psxCpu->Clear(section_address, section_size / 4);
+					#endif
+				}
 				fclose(tmpFile);
 				psxRegs.pc = SWAP32(tmpHead.pc0);
 				psxRegs.GPR.n.gp = SWAP32(tmpHead.gp0);
@@ -432,7 +540,13 @@ int Load(const char *ExePath) {
 #ifdef EMU_LOG
 							EMU_LOG("Loading %08X bytes from %08X to %08X\n", section_size, ftell(tmpFile), section_address);
 #endif
-							fread(PSXM(section_address), section_size, 1, tmpFile);
+							mem = PSXM(section_address);
+							if (mem != NULL) {
+								fread(mem, section_size, 1, tmpFile);
+								#ifdef PSXREC
+									psxCpu->Clear(section_address, section_size / 4);
+								#endif
+							}
 							break;
 						case 3: /* register loading (PC only?) */
 							fseek(tmpFile, 2, SEEK_CUR); /* unknown field */
@@ -562,13 +676,16 @@ int LoadState(const char *file) {
 	gzread(f, psxM, 0x00200000);
 	gzread(f, psxR, 0x00080000);
 	gzread(f, psxH, 0x00010000);
+#ifdef DEBUG_BIOS
+	u32 repeated=0, regs_offset=gztell(f);
+#endif
 	gzread(f, (void*)&psxRegs, sizeof(psxRegs));
 	psxRegs.psxM=psxM;
 	psxRegs.psxP=psxP;
 	psxRegs.psxR=psxR;
 	psxRegs.psxH=psxH;
 	psxRegs.io_cycle_counter=0;
-#if defined(USE_CYCLE_ADD) || defined(DEBUG_CPU_OPCODES)
+#if !defined(DEBUG_CPU) && (defined(USE_CYCLE_ADD) || defined(DEBUG_CPU_OPCODES))
 	psxRegs.cycle_add=0;
 	gzseek(f, gztell(f)-4, SEEK_SET);
 #endif
@@ -576,6 +693,9 @@ int LoadState(const char *file) {
 	if (Config.HLE)
 		psxBiosFreeze(0);
 
+#ifdef DEBUG_BIOS
+ label_repeat_:
+#endif
 	// gpu
 	gpufP = (GPUFreeze_t *) malloc (sizeof(GPUFreeze_t));
 	gzread(f, gpufP, sizeof(GPUFreeze_t));
@@ -598,7 +718,27 @@ int LoadState(const char *file) {
 	gzclose(f);
 
 #ifdef DEBUG_CPU_OPCODES
+#ifndef DEBUG_BIOS
 	dbgsum("LOADSTATE MEMORY SUM:",(void *)&psxM[0],0x200000);
+#else
+	if (Config.HLE) {
+		if (!repeated && !strcmp("dbgbios_hle",file)){
+			repeated=1;
+			f = gzopen("dbgbios_bios", "rb");
+			if (f) {
+				gzseek(f,regs_offset,SEEK_SET);
+				gzread(f, (void*)&psxRegs, sizeof(psxRegs));
+				psxRegs.psxM=psxM;
+				psxRegs.psxP=psxP;
+				psxRegs.psxR=psxR;
+				psxRegs.psxH=psxH;
+				psxRegs.io_cycle_counter=0;
+				goto label_repeat_;
+			}
+		}
+	}
+	printf("INTS 0x%X, 0x%X (0x%X), HSync=%u %u\n",psxHu32(0x1070),psxHu32(0x1074),psxRegs.CP0.n.Status,psxGetHSync(),psxGetSpuSync());
+#endif
 	dbgregs((void*)&psxRegs);
 	dbgregsCop((void *)&psxRegs);
 #endif

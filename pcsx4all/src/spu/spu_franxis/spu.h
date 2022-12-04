@@ -56,7 +56,7 @@ typedef struct
 
 // ~ 1 ms of data
 #define NSSIZE 32
-#define NSSIZE_PAL 30
+#define CYCLES 16
 
 #define H_SPUirqAddr     0x0da4
 #define H_SPUaddr        0x0da6
@@ -216,14 +216,11 @@ typedef struct
 	unsigned char *   pLoop;                              // loop ptr in sound mem
 	
 	bool              bStop:1;                            // is channel stopped (sample _can_ still be playing, ADSR Release phase)
-	bool              bIgnoreLoop:1;                      // ignore loop bit, if an external loop address is used
 	bool              bNoise:1;                           // noise active flag
 	unsigned char     bFMod:2;                            // freq mod (0=off, 1=sound channel, 2=freq channel)
 
 	int               iActFreq;                           // current psx pitch
 	int               iUsedFreq;                          // current pc pitch
-	int               s_1;                                // last decoding infos
-	int               s_2;
 	ADSRInfoEx        ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 	int               iRawPitch;                          // raw pitch (0...3fff)
 	int               iOldNoise;                          // old noise val for this channel   

@@ -56,7 +56,7 @@ INLINE void fillrow(int *blk, int val) {
 		= blk[4] = blk[5] = blk[6] = blk[7] = val;
 }
 
-void idct(int *block,int used_col) {
+static void idct(int *block,int used_col) {
 	int tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
 	int z5, z10, z11, z12, z13;
 	int *ptr;
@@ -168,7 +168,7 @@ void idct(int *block,int used_col) {
 #define MDEC1_STP			0x00800000
 #define MDEC1_RESET			0x80000000
 
-struct {
+static struct {
     u32 reg0;
     u32 reg1;
     unsigned short *rl;
@@ -209,7 +209,7 @@ static void iqtab_init(int *iqtab, unsigned char *iqy) {
 
 #define	MDEC_END_OF_DATA	0xfe00
 
-unsigned short *rl2blk(int *blk, unsigned short *mdec_rl) {
+static unsigned short *rl2blk(int *blk, unsigned short *mdec_rl) {
 	int i, k, q_scale, rl, used_col;
  	int *iqtab;
 

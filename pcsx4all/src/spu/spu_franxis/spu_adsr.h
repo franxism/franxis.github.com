@@ -47,98 +47,68 @@ INLINE void InitADSR(void)                                    // INIT ADSR
 
 ////////////////////////////////////////////////////////////////////////
 
-INLINE int MixADSR(SPUCHAN *l_chan)                             // MIX ADSR
+INLINE int MixADSR(int ch)                             // MIX ADSR
 {
 	static const char ratetable_offset[8] = { 0, 4, 6, 8, 9, 10, 11, 12 };
 	int rto;
+	int EnvelopeVol=s_chan[ch].ADSRX.EnvelopeVol;
 
-	if(l_chan->bStop)                                  // should be stopped:
+	if(s_chan[ch].bStop)                                  // should be stopped:
 	{                                                    // do release
-		if(l_chan->ADSRX.ReleaseModeExp)
-		{
-			rto=ratetable_offset[(l_chan->ADSRX.EnvelopeVol>>28)&0x7];
-		}
-		else
-		{
-			rto=12;
-		}
-		l_chan->ADSRX.EnvelopeVol-=RateTable[(4*(l_chan->ADSRX.ReleaseRate^0x1F))-0x18 + rto + 32];
+		if(s_chan[ch].ADSRX.ReleaseModeExp) rto=ratetable_offset[(EnvelopeVol>>28)&0x7];
+		else rto=12;
+		EnvelopeVol-=((RateTable[((s_chan[ch].ADSRX.ReleaseRate^0x1F)<<2)-0x18 + rto + 32])<<1);
 
-		if(l_chan->ADSRX.EnvelopeVol<0) 
-		{
-			l_chan->ADSRX.EnvelopeVol=0;
-			// don't stop if this chan can still cause irqs
-			if(!(spuCtrl&0x40) || (l_chan->pCurr > pSpuIrq && l_chan->pLoop > pSpuIrq))
-			//l_chan->bOn=0;
-			l_chan->pCurr=(unsigned char *)-1;
-			//l_chan->bReverb=0;
-			//l_chan->bNoise=0;
-		}
+		if(EnvelopeVol<0) { EnvelopeVol=0; dwChannelOn &= ~(1<<ch); }
 
 		goto done;
 	}
 
-	switch(l_chan->ADSRX.State)                       // not stopped yet
+	switch(s_chan[ch].ADSRX.State)                       // not stopped yet
 	{
 		case 0:                                             // -> attack
-			rto=8;
-			if(l_chan->ADSRX.AttackModeExp&&l_chan->ADSRX.EnvelopeVol>=0x60000000)
-			rto = 0;
-			l_chan->ADSRX.EnvelopeVol+=RateTable[(l_chan->ADSRX.AttackRate^0x7F)-0x18 + rto + 32];
+			if(s_chan[ch].ADSRX.AttackModeExp&&EnvelopeVol>=0x60000000) rto = 0;
+			else rto=8;
+			EnvelopeVol+=((RateTable[(s_chan[ch].ADSRX.AttackRate^0x7F)-0x18 + rto + 32])<<1);
 
-			if(l_chan->ADSRX.EnvelopeVol<0) 
+			if(EnvelopeVol<0) 
 			{
-				l_chan->ADSRX.EnvelopeVol=0x7FFFFFFF;
-				l_chan->ADSRX.State=1;
+				EnvelopeVol=0x7FFFFFFF;
+				s_chan[ch].ADSRX.State=1;
 			}
 			break;
 
 			//--------------------------------------------------//
 		case 1:                                             // -> decay
-			rto=ratetable_offset[(l_chan->ADSRX.EnvelopeVol>>28)&0x7];
-			l_chan->ADSRX.EnvelopeVol-=RateTable[(4*(l_chan->ADSRX.DecayRate^0x1F))-0x18+ rto + 32];
+			rto=ratetable_offset[(EnvelopeVol>>28)&0x7];
+			EnvelopeVol-=((RateTable[((s_chan[ch].ADSRX.DecayRate^0x1F)<<2)-0x18+ rto + 32])<<1);
 
-			if(l_chan->ADSRX.EnvelopeVol<0) l_chan->ADSRX.EnvelopeVol=0;
-			if(((l_chan->ADSRX.EnvelopeVol>>27)&0xF) <= l_chan->ADSRX.SustainLevel)
-			{
-				l_chan->ADSRX.State=2;
-			}
+			if(EnvelopeVol<0) EnvelopeVol=0;
+			if(((EnvelopeVol>>27)&0xF) <= s_chan[ch].ADSRX.SustainLevel) s_chan[ch].ADSRX.State=2;
 			break;
 
 			//--------------------------------------------------//
 		case 2:                                             // -> sustain
-			if(l_chan->ADSRX.SustainIncrease)
+			if(s_chan[ch].ADSRX.SustainIncrease)
 			{
-				rto=8;
-				if(l_chan->ADSRX.SustainModeExp&&l_chan->ADSRX.EnvelopeVol>=0x60000000)
-				rto=0;
-				l_chan->ADSRX.EnvelopeVol+=RateTable[(l_chan->ADSRX.SustainRate^0x7F)-0x18 + rto + 32];
+				if(s_chan[ch].ADSRX.SustainModeExp&&EnvelopeVol>=0x60000000) rto=0;
+				else rto=8;
+				EnvelopeVol+=((RateTable[(s_chan[ch].ADSRX.SustainRate^0x7F)-0x18 + rto + 32])<<1);
 
-				if(l_chan->ADSRX.EnvelopeVol<0) 
-				{
-					l_chan->ADSRX.EnvelopeVol=0x7FFFFFFF;
-				}
+				if(EnvelopeVol<0) EnvelopeVol=0x7FFFFFFF;
 			}
 			else
 			{
-				if(l_chan->ADSRX.SustainModeExp)
-				{
-					rto=ratetable_offset[(l_chan->ADSRX.EnvelopeVol>>28)&0x7];
-				}
-				else
-				{
-					rto=12;
-				}
-				l_chan->ADSRX.EnvelopeVol-=RateTable[((l_chan->ADSRX.SustainRate^0x7F))-0x1B + rto + 32];
+				if(s_chan[ch].ADSRX.SustainModeExp) rto=ratetable_offset[(EnvelopeVol>>28)&0x7];
+				else rto=12;
+				EnvelopeVol-=((RateTable[((s_chan[ch].ADSRX.SustainRate^0x7F))-0x1B + rto + 32])<<1);
 
-				if(l_chan->ADSRX.EnvelopeVol<0) 
-				{
-					l_chan->ADSRX.EnvelopeVol=0;
-				}
+				if(EnvelopeVol<0) { EnvelopeVol=0; dwChannelOn &= ~(1<<ch); }
 			}
 			break;
 	}
 
 	done:
-	return l_chan->ADSRX.EnvelopeVol>>21;
+	s_chan[ch].ADSRX.EnvelopeVol=EnvelopeVol;
+	return EnvelopeVol>>21;
 }
