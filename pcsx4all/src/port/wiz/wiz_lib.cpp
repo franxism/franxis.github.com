@@ -5,6 +5,8 @@
 #define FB1_0 (0x2A00000+320*240*4)
 #define FB1_1 (0x2A00000+320*240*6)
 #define FBX_L (320*240*2)
+unsigned char *upper_fb;
+
 unsigned char *uppermem;
 
 /* register access */
@@ -26,14 +28,13 @@ static unsigned short *fb1_0, *fb1_1; /* layer 1, buffer 0 : layer 1, buffer 1 (
 int	wiz_sound_rate=22050;
 int	wiz_sound_stereo=0;
 int wiz_clock=533;
-int rotate_controls=0;
 int	wiz_ram_tweaks=0;
 int wiz_rotated_video=0;
 int master_volume = 100;
 
 static void lc_setfb(int layer, unsigned short *set_to);
 static void lc_flipfb(int layer,int single);
-static void lc_setlayer(int layer, unsigned char onoff, unsigned char alpha, unsigned char invert, unsigned char trans, unsigned int mode);
+static void lc_setlayer(int layer, bool onoff, bool alpha, bool invert, bool trans, unsigned int mode);
 static void lc_layerpos(int layer, int x1, int y1, int x2, int y2);
 /*
 static void lc_setalpha(int layer, int value);
@@ -107,7 +108,7 @@ static void lc_flipfb(int layer,int single)
 }
 
 /* Sets layer properties */
-static void lc_setlayer(int layer, unsigned char onoff, unsigned char alpha, unsigned char invert, unsigned char trans, unsigned int mode)
+static void lc_setlayer(int layer, bool onoff, bool alpha, bool invert, bool trans, unsigned int mode)
 {
 	/* set layer properties register */
 	unsigned int temp;
@@ -339,8 +340,12 @@ int wiz_init(int bpp, int rate, int bits, int stereo)
 	/* Set Wiz Clock */
 	wiz_set_clock(wiz_clock);
 
-	uppermem=(unsigned char  *)mmap(0, 0x4000000-0x2A00000, PROT_READ|PROT_WRITE, MAP_SHARED, wiz_dev[0], 0x2A00000);
+	/* Video frame buffers */
+	upper_fb=(unsigned char  *)mmap(0, FBX_L*4, PROT_READ|PROT_WRITE, MAP_SHARED, wiz_dev[0], 0x2A00000);
 
+	/* Upper memory */
+	uppermem=(unsigned char  *)mmap(0, 0x4000000-0x3000000, PROT_READ|PROT_WRITE, MAP_PRIVATE, wiz_dev[0], 0x3000000);
+	
 #ifdef MMUHACK
 	warm_init();
     warm_change_cb_upper(WCB_C_BIT|WCB_B_BIT, 1);
@@ -349,11 +354,10 @@ int wiz_init(int bpp, int rate, int bits, int stereo)
 	upper_malloc_init(uppermem);
 
 	/* assign framebuffers */
-	fb0_0 = (unsigned short *)upper_take(FB0_0,FBX_L); // do not use video buffer memory
-	fb0_1 = (unsigned short *)upper_take(FB0_1,FBX_L); // do not use video buffer memory
-	fb1_0 = (unsigned short *)upper_take(FB1_0,FBX_L); // do not use video buffer memory
-	fb1_1 = (unsigned short *)upper_take(FB1_1,FBX_L); // do not use video buffer memory
-	upper_take(FB1_1+FBX_L,(0x3000000-0x2A00000)-(FBX_L*4)); // do not use kernel memory
+	fb0_0 = (unsigned short *)(upper_fb);
+	fb0_1 = (unsigned short *)(upper_fb+FBX_L);
+	fb1_0 = (unsigned short *)(upper_fb+FBX_L*2);
+	fb1_1 = (unsigned short *)(upper_fb+FBX_L*3);
 	
     /* assign initial framebuffers */
 	fb0_16bit = fb0_1; fb0_8bit=(unsigned char *)fb0_16bit;
@@ -374,17 +378,17 @@ int wiz_init(int bpp, int rate, int bits, int stereo)
 	if (bpp==16)
 	{
 		#ifndef USE_BGR15
-	    lc_setlayer(0, 0, 0, 0, 0, RGB565); /* set default layer settings */
-	    lc_setlayer(1, 1, 0, 0, 0, RGB565);
+	    lc_setlayer(0, false, false, false, false, RGB565); /* set default layer settings */
+	    lc_setlayer(1, true, false, false, false, RGB565);
 		#else
-	    lc_setlayer(0, 0, 0, 0, 0, XBGR1555);
-	    lc_setlayer(1, 1, 0, 0, 0, XBGR1555);
+	    lc_setlayer(0, false, false, false, false, XBGR1555);
+	    lc_setlayer(1, true, false, false, false, XBGR1555);
 		#endif
 	}
 	else
 	{
-	    lc_setlayer(0, 0, 0, 0, 0, PTRGB565); /* set default layer settings */
-	    lc_setlayer(1, 1, 0, 0, 0, PTRGB565);
+	    lc_setlayer(0, false, false, false, false, PTRGB565); /* set default layer settings */
+	    lc_setlayer(1, true, false, false, false, PTRGB565);
         int i;
         for (i=0; i<256; i++)
         {
@@ -467,6 +471,8 @@ void wiz_deinit(void)
 	lc_dirtylayer(1);
 	lc_dirtymlc();
 
+	munmap((void *)uppermem, 0x1000000);
+	munmap((void *)upper_fb, FBX_L*4);
    	munmap((void *)memregs32, 0x20000);
 
  	close(wiz_dev[2]);
@@ -503,7 +509,6 @@ unsigned int wiz_joystick_read(int n)
    		if ( (res & WIZ_VOLUP) &&  (res & WIZ_VOLDOWN)) wiz_sound_volume(100,100);
    		if ( (res & WIZ_VOLUP) && !(res & WIZ_VOLDOWN)) wiz_sound_volume(master_volume+1,master_volume+1);
    		if (!(res & WIZ_VOLUP) &&  (res & WIZ_VOLDOWN)) wiz_sound_volume(master_volume-1,master_volume-1);
-   		if ((rotate_controls) && (res & WIZ_MENU)) res |= WIZ_B;
     }
 	return res;
 }
@@ -724,17 +729,17 @@ void wiz_set_video_mode(int bpp,int width,int height)
 	if (bpp==16)
 	{
 		#ifndef USE_BGR15
-	    lc_setlayer(0, 0, 0, 0, 0, RGB565); /* set default layer settings */
-	    lc_setlayer(1, 1, 0, 0, 0, RGB565);
+	    lc_setlayer(0, false, false, false, false, RGB565); /* set default layer settings */
+	    lc_setlayer(1, true, false, false, false, RGB565);
 		#else
-	    lc_setlayer(0, 0, 0, 0, 0, XBGR1555);
-	    lc_setlayer(1, 1, 0, 0, 0, XBGR1555);
+	    lc_setlayer(0, false, false, false, false, XBGR1555);
+	    lc_setlayer(1, true, false, false, false, XBGR1555);
 		#endif
 	}
 	else
 	{
-	    lc_setlayer(0, 0, 0, 0, 0, PTRGB565); /* set default layer settings */
-	    lc_setlayer(1, 1, 0, 0, 0, PTRGB565);
+	    lc_setlayer(0, false, false, false, false, PTRGB565); /* set default layer settings */
+	    lc_setlayer(1, true, false, false, false, PTRGB565);
         int i;
         for (i=0; i<256; i++)
         {
