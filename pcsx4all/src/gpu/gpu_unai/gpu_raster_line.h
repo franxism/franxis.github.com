@@ -18,8 +18,6 @@
 *   51 Franklin Street, Fifth Floor, Boston, MA 02111-1307 USA.           *
 ***************************************************************************/
 
-#define	GPU_TESTRANGE(x)      { if((u32)(x+1024) > 2047) return; }
-
 ///////////////////////////////////////////////////////////////////////////////
 //  GPU internal line drawing functions
 
@@ -28,7 +26,7 @@
 
 INLINE long GPU_DIV(long rs, long rt)
 {
-	return rt ? (SDIV(rs,rt)) : (0);
+	return rt ? (rs / rt) : (0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -49,10 +47,6 @@ void gpuDrawLF(const PD gpuPixelDriver)
 	ymin = DrawingArea[1];	ymax = DrawingArea[3];
 	const u16 pixeldata = GPU_RGB16(PacketBuffer.U4[0]);
 
-	const int li=linesInterlace;
-	const int pi=(progressInterlace?(linesInterlace+1):0);
-	const int pif=(progressInterlace?(progressInterlace_flag?(linesInterlace+1):0):1);
-	
 	dy = (y1 - y0);
 	if (dy < 0) dy = -dy;
 	dx = (x1 - x0);
@@ -73,9 +67,10 @@ void gpuDrawLF(const PD gpuPixelDriver)
 		x1 -= x0;
 		if (x1 < 0) x1 = 0;
 
+		const int li=linesInterlace;
 		for (; x1; x1--) {
 			temp = y0 >> GPU_DIGITS;
-			if ((0==(temp&li))&&((temp&pi)!=pif))  {
+			if( 0 == (temp&li) )  {
 				if ((u32) (temp - ymin) < (u32) (ymax - ymin)) {
 					gpuPixelDriver(&((u16*)GPU_FrameBuffer)[FRAME_OFFSET(x0, temp)],pixeldata);
 				}
@@ -99,8 +94,9 @@ void gpuDrawLF(const PD gpuPixelDriver)
 		y1 -= y0;
 		if (y1 < 0) y1 = 0;
 		
+		const int li=linesInterlace;
 		for (; y1; y1--) {
-			if ((0==(y0&li))&&((y0&pi)!=pif))  {
+			if( 0 == (y0&li) )  {
 				temp = x0 >> GPU_DIGITS;
 				if ((u32) (temp - xmin) < (u32) (xmax - xmin)) {
 					gpuPixelDriver(&((u16*)GPU_FrameBuffer)[FRAME_OFFSET(temp, y0)],pixeldata);
@@ -111,7 +107,7 @@ void gpuDrawLF(const PD gpuPixelDriver)
 		}
 		
 	} else {
-		if ((0==(y0&li))&&((y0&pi)!=pif))  {
+		if( 0 == (y0&linesInterlace) )  {
 			if ((u32) (x0 - xmin) < (u32) (xmax - xmin)) {
 				if ((u32) (y0 - ymin) < (u32) (ymax - ymin)) {
 					gpuPixelDriver(&((u16*)GPU_FrameBuffer)[FRAME_OFFSET(x0, y0)],pixeldata);
@@ -148,10 +144,6 @@ void gpuDrawLG(const PD gpuPixelDriver)
 	xmin = DrawingArea[0];	xmax = DrawingArea[2];
 	ymin = DrawingArea[1];	ymax = DrawingArea[3];
 
-	const int li=linesInterlace;
-	const int pi=(progressInterlace?(linesInterlace+1):0);
-	const int pif=(progressInterlace?(progressInterlace_flag?(linesInterlace+1):0):1);
-	
 	dy = (y1 - y0);
 	if (dy < 0)
 	dy = -dy;
@@ -186,9 +178,10 @@ void gpuDrawLG(const PD gpuPixelDriver)
 		x1 -= x0;
 		if (x1 < 0) x1 = 0;
 		
+		const int li=linesInterlace;
 		for (; x1; x1--) {
 			temp = y0 >> GPU_DIGITS;
-			if ((0==(temp&li))&&((temp&pi)!=pif))  {
+			if( 0 == (temp&li) )  {
 				if ((u32) (temp - ymin) < (u32) (ymax - ymin)) {
 					gpuPixelDriver (
 						&((u16*)GPU_FrameBuffer)[FRAME_OFFSET(x0, temp)],
@@ -230,8 +223,9 @@ void gpuDrawLG(const PD gpuPixelDriver)
 		y1 -= y0;
 		if (y1 < 0) y1 = 0;
 		
+		const int li=linesInterlace;
 		for (; y1; y1--) {
-			if ((0==(y0&li))&&((y0&pi)!=pif))  {
+			if( 0 == (y0&li) )  {
 				temp = x0 >> GPU_DIGITS;
 				if ((u32) (temp - xmin) < (u32) (xmax - xmin)) {
 					gpuPixelDriver (
@@ -247,7 +241,7 @@ void gpuDrawLG(const PD gpuPixelDriver)
 			b0 += b1;
 		}
 	} else {
-		if ((0==(y0&li))&&((y0&pi)!=pif))  {
+		if( 0 == (y0&linesInterlace) )  {
 			if ((u32) (x0 - xmin) < (u32) (xmax - xmin)) {
 				if ((u32) (y0 - ymin) < (u32) (ymax - ymin)) {
 					gpuPixelDriver (

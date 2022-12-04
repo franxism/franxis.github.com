@@ -1,9 +1,8 @@
 
 #include "wiz_lib.h"
-#include "malloc.h"
 
 #define UPPERMEM_BLOCKSIZE 1024
-#define UPPERMEM_START 0x3000000
+#define UPPERMEM_START 0x2A00000
 #define UPPERMEM_SIZE  (0x4000000-UPPERMEM_START)
 
 static void *uppermem;
@@ -68,12 +67,19 @@ void * upper_take(int Start, size_t Size)
 void * wiz_malloc(size_t size)
 {
 	void *ptr=NULL;
-	ptr=upper_malloc(size);
+	if (size>=(2*1024)) {
+		ptr=upper_malloc(size);
+		if (ptr)
+		{
+			return (ptr);
+		}
+	}
+	ptr=malloc(size);
 	if (ptr)
 	{
 		return (ptr);
 	}
-	ptr=memalign(UPPERMEM_BLOCKSIZE,size);
+	ptr=upper_malloc(size);
 	if (ptr)
 	{
 		return (ptr);

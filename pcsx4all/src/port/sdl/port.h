@@ -12,13 +12,6 @@
 #include <sys/types.h>
 #include <assert.h>
 
-#ifdef ANDROID
-#include "div.h"
-#else
-#define UDIV(n,d) ((n)/(d))
-#define SDIV(n,d) ((n)/(d))
-#endif
-
 extern unsigned get_ticks(void);
 extern void wait_ticks(unsigned s);
 extern void pad_update(void);

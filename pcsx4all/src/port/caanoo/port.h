@@ -11,10 +11,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <assert.h>
-#include "div.h"
-
-#include "malloc.h"
-#define malloc(size) memalign(1024,size)
 
 extern unsigned get_ticks(void);
 extern void wait_ticks(unsigned s);

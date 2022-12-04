@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <assert.h>
-#include "div.h"
 
 #define malloc(size) wiz_malloc(size)
 #define calloc(n,size) wiz_calloc(n,size)
